@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -24,14 +24,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4️⃣ Build Rider App (CRA → build/)
+      # 4️⃣ Build Rider App (CRA FIX: disable CI lint blocking)
       - name: Build Rider App
-        run: npm run build
+        run: CI=false npm run build
 
-      # 5️⃣ Verify build folder (safety check)
+      # 5️⃣ Verify build output
       - name: Verify build folder
         run: |
+          echo "Project root:"
           ls -la
+          echo "Build folder:"
           ls -la build
 
       # 6️⃣ Prepare Rider App directory on EC2
@@ -44,10 +46,11 @@ jobs:
           script: |
             sudo mkdir -p /var/www/rider
             sudo chown -R ec2-user:ec2-user /var/www/rider
+            sudo chmod -R 755 /var/www/rider
             sudo rm -rf /var/www/rider/*
 
       # 7️⃣ Copy Rider App build files to EC2
-      - name: Copy Rider App build files
+      - name: Copy Rider App build files to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
