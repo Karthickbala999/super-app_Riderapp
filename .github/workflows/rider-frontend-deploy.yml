@@ -1,0 +1,68 @@
+name: Rider App Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4️⃣ Build Rider App (CRA → build/)
+      - name: Build Rider App
+        run: npm run build
+
+      # 5️⃣ Verify build folder (safety check)
+      - name: Verify build folder
+        run: |
+          ls -la
+          ls -la build
+
+      # 6️⃣ Prepare Rider App directory on EC2
+      - name: Prepare Rider App directory on EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            sudo mkdir -p /var/www/rider
+            sudo chown -R ec2-user:ec2-user /var/www/rider
+            sudo rm -rf /var/www/rider/*
+
+      # 7️⃣ Copy Rider App build files to EC2
+      - name: Copy Rider App build files
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "build"
+          target: "/var/www/rider"
+          overwrite: true
+
+      # 8️⃣ Reload Nginx
+      - name: Reload Nginx
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            sudo systemctl reload nginx
